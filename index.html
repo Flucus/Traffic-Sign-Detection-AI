@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Traffic sign detection</title>
+  <style>
+    body {
+      font-family: sans-serif;
+    }
+
+    #dropzone {
+      width: 500px;
+      height: 300px;
+      border: 2px dashed #ccc;
+      background-color: #eee;
+      text-align: center;
+      line-height: 300px;
+      margin: 0 auto;
+    }
+
+    #dropzone.highlight {
+      border-color: #007bff;
+    }
+
+    #output {
+      margin-top: 20px;
+      padding: 10px;
+      border: 1px solid #ccc;
+      background-color: #f5f5f5;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="output">
+    <p>Detected classes will be displayed here.</p>
+    <p id="log"></p>
+    <canvas id="canvas" width="1000" height="1000"></canvas>
+  </div>
+  <div id="dropzone">
+    <p>Drop an image here to detect objects</p>
+  </div>
+
+  <script>
+    function drawImageData(dataURL, objects) {
+      /** @type {HTMLCanvasElement} */
+      const canvas = document.getElementById('canvas')
+      const ctx = canvas.getContext('2d')
+      const image = new Image()
+      image.onload = () => {
+        const baseSize = 1000
+        const ratio = image.naturalHeight / image.naturalWidth
+        if (ratio > 1) {
+          canvas.width = baseSize / ratio
+          canvas.height = baseSize
+        } else {
+          canvas.width = baseSize
+          canvas.height = baseSize * ratio
+        }
+        ctx.drawImage(image, 0, 0, canvas.width, canvas.height)
+        const projectRatio = canvas.width / image.naturalWidth
+        for (const object of objects) {
+          const [x1, y1, x2, y2] = object.coordinates.map(num => num * projectRatio)
+          const width = x2 - x1
+          const height = y2 - y1
+          const name = object.name
+
+          ctx.lineWidth = 2
+          ctx.strokeStyle = 'red'
+          ctx.rect(x1, y1, width, height)
+          ctx.stroke()
+
+          ctx.fillStyle = 'red'
+          ctx.font = '15px Arial'
+          ctx.shadowColor = 'black'
+          ctx.shadowOffsetX = 2
+          ctx.shadowOffsetY = 2
+          ctx.shadowBlur = 4
+          ctx.strokeText(name, x1 - 20, y1)
+          ctx.fillText(name, x1 - 20, y1)
+        }
+      }
+      image.src = dataURL
+    }
+
+    function getFileDataUrl(file) {
+      return new Promise(resolve => {
+        const reader = new FileReader()
+        reader.onload = event => resolve(event.target.result)
+        reader.readAsDataURL(file)
+      })
+    }
+
+    function updateOutput(objects) {
+      const classSet = new Set()
+      for (const object of objects) {
+        classSet.add(object.name)
+      }
+
+      const log = document.getElementById('log')
+      log.textContent = [...classSet].map((name, i) => `${i + 1}. ${name}`).join('  ')
+    }
+
+    const dropzone = document.getElementById('dropzone')
+    const output = document.getElementById('output')
+
+    dropzone.addEventListener('dragover', event => {
+      event.preventDefault()
+      dropzone.classList.add('highlight')
+    })
+
+    dropzone.addEventListener('dragleave', event => {
+      event.preventDefault()
+      dropzone.classList.remove('highlight')
+    })
+
+    dropzone.addEventListener('drop', async event => {
+      event.preventDefault()
+      dropzone.classList.remove('highlight')
+
+      const file = event.dataTransfer.files[0]
+      const imageDataUrl = await getFileDataUrl(file)
+
+      const formData = new FormData()
+      formData.append('image', file)
+      const res = await fetch('/detect', { method: 'POST', body: formData })
+      const objects = await res.json()
+
+      updateOutput(objects)
+      drawImageData(imageDataUrl, objects)
+    })
+  </script>
+</body>
+
+</html>
