@@ -1,8 +1,8 @@
 task: detect
 mode: train
-model: yolov8n.pt
+model: runs/detect/train/weights/best.pt
 data: traffic_sign_dataset/dataset.yaml
-epochs: 100
+epochs: 200
 patience: 50
 batch: 32
 imgsz: 640
@@ -12,7 +12,7 @@ cache: false
 device: null
 workers: 128
 project: null
-name: train
+name: train3
 exist_ok: false
 pretrained: true
 optimizer: auto
@@ -95,4 +95,4 @@ mixup: 0.0
 copy_paste: 0.0
 cfg: null
 tracker: botsort.yaml
-save_dir: runs\detect\train
+save_dir: runs\detect\train3
